@@ -69,7 +69,7 @@ def start_sync(sync_path, cmd_args):
 
     # custom set builder
     def get_custom_set_title(path):
-        title = path.split('/').pop()
+        title = path[len(os.getcwd())+1:]
 
         if cmd_args.custom_set:
             m = re.match(cmd_args.custom_set, path)
