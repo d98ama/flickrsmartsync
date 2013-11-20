@@ -6,11 +6,14 @@ import re
 import urllib
 import argparse
 import flickrapi
+import tempfile
+from PythonMagick import Image
 
 __author__ = 'faisal'
 
-EXT_IMAGE = ('jpg', 'png', 'jpeg', 'gif', 'bmp')
+EXT_IMAGE = ('jpg', 'jpeg', 'png', 'jpeg', 'gif', 'bmp', 'tif', 'tiff')
 EXT_VIDEO = ('avi', 'wmv', 'mov', 'mp4', '3gp', 'ogg', 'ogv', 'mts')
+EXT_CONVERT_IMAGE = ('cr2', 'orf', 'rw2', 'psd')
 
 
 def start_sync(sync_path, cmd_args):
@@ -22,7 +25,7 @@ def start_sync(sync_path, cmd_args):
     SECRET = 'c329cdaf44c6d3f3'
 
     if not os.path.exists(sync_path):
-        print 'Sync path does not exists'
+        print 'Sync path does not exists: ' + sync_path
         exit(0)
 
     # Common arguments
@@ -55,7 +58,8 @@ def start_sync(sync_path, cmd_args):
             if not file.startswith('.'):
                 ext = file.lower().split('.').pop()
                 if ext in EXT_IMAGE or \
-                   ext in EXT_VIDEO:
+                   ext in EXT_VIDEO or \
+                   (cmd_args.handle_raw and ext in EXT_CONVERT_IMAGE):
 
                     if r == sync_path:
                         skips_root.append(file)
@@ -69,6 +73,7 @@ def start_sync(sync_path, cmd_args):
 
     # custom set builder
     def get_custom_set_title(path):
+        #TODO Use sync_path instead of os.getcwd here...
         title = path[len(os.getcwd())+1:]
 
         if cmd_args.custom_set:
@@ -190,6 +195,23 @@ def start_sync(sync_path, cmd_args):
 
         return photos
 
+    def file_eligable_for_conversion(filename):
+        if filename.split('.').pop().lower() in EXT_CONVERT_IMAGE:
+            return True
+        return False
+
+    def convert_local_filename_to_flickr(filename):
+        return '.'.join(filename.split('.')[:-1] + ['tiff'])
+
+    def convert_photo_to_tiff(photo_path):
+        image = Image(photo_path)
+        image.magick("TIFF")
+        (_, file_name) = os.path.split(photo_path)
+        file_name = convert_local_filename_to_flickr(file_name)
+        file_name = os.path.join(tempfile.mkdtemp('.flickrsmartsync'), file_name)
+        image.write(file_name)
+        return file_name
+
     # If download mode lets skip upload but you can also modify this to your needs
     if is_download:
         # Download to corresponding paths
@@ -231,6 +253,11 @@ def start_sync(sync_path, cmd_args):
             print 'Found %s photos' % len(photos)
 
             for photo in sorted(photo_sets[photo_set]):
+                #Convert local photo name to online photo name (for example CR2 -> tiff)
+                original_photo = photo
+                if file_eligable_for_conversion(photo):
+                    photo = convert_local_filename_to_flickr(photo)
+
                 # Adds skips
                 if cmd_args.ignore_images and photo.split('.').pop().lower() in EXT_IMAGE:
                     continue
@@ -244,6 +271,9 @@ def start_sync(sync_path, cmd_args):
                     upload_args = {'auth_token': token, 'title': photo, 'hidden': 1, 'is_public': 0, 'is_friend': 0, 'is_family': 0}
 
                     file_path = os.path.join(photo_set, photo)
+                    if file_eligable_for_conversion(original_photo):
+                        file_path = convert_photo_to_tiff(os.path.join(photo_set, original_photo))
+
                     file_stat = os.stat(file_path)
 
                     if file_stat.st_size >= 1073741824:
@@ -260,6 +290,7 @@ def start_sync(sync_path, cmd_args):
                     except:
                         # todo add tracking to show later which ones failed
                         pass
+                    #TODO Delete any temporary created tiff files
 
     print 'All Synced'
 
@@ -274,6 +305,7 @@ def main():
     parser.add_argument('--custom-set', type=str, help='customize your set name from path with regex')
     parser.add_argument('--custom-set-builder', type=str, help='build your custom set title (default just merge groups)')
     parser.add_argument('--update-custom-set', action='store_true', help='updates your set title from custom set')
+    parser.add_argument('--handle-raw', action='store_true', help='handle raw image files')
 
     args = parser.parse_args()
     start_sync(args.sync_path.rstrip(os.sep) + os.sep, args)
