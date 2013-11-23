@@ -54,6 +54,14 @@ def start_sync(sync_path, cmd_args):
         files = [f for f in files if not f.startswith('.')]
         dirs[:] = [d for d in dirs if not d.startswith('.')]
 
+        if cmd_args.include_pattern:
+            m = re.match(cmd_args.include_pattern, r.replace(sync_path, ''))
+            if not m:
+                print 'Folder %s does not match pattern %s. Skipping...' % (r, cmd_args.include_pattern)
+                continue
+            else:
+                print 'Folder %s matches pattern %s. Adding to process list...' % (r, cmd_args.include_pattern)
+
         for file in files:
             if not file.startswith('.'):
                 ext = file.lower().split('.').pop()
@@ -72,9 +80,8 @@ def start_sync(sync_path, cmd_args):
         print 'Try to sync at top most level of your photos directory'
 
     # custom set builder
-    def get_custom_set_title(path):
-        #TODO Use sync_path instead of os.getcwd here...
-        title = path[len(os.getcwd())+1:]
+    def get_custom_set_title(path, sync_path):
+        title = path[len(sync_path):]
 
         if cmd_args.custom_set:
             m = re.match(cmd_args.custom_set, path)
@@ -96,7 +103,7 @@ def start_sync(sync_path, cmd_args):
     # Show 3 possibilities
     if cmd_args.custom_set:
         for photo_set in photo_sets:
-            print 'Set Title: [%s]  Path: [%s]' % (get_custom_set_title(photo_set), photo_set)
+            print 'Set Title: [%s]  Path: [%s]' % (get_custom_set_title(photo_set, sync_path), photo_set)
 
         if raw_input('Is this your expected custom set titles (y/n):') != 'y':
             exit(0)
@@ -114,7 +121,7 @@ def start_sync(sync_path, cmd_args):
             desc = html_parser.unescape(set['description']['_content'])
             if desc:
                 photo_sets_map[desc] = set['id']
-                title = get_custom_set_title(sync_path + desc)
+                title = get_custom_set_title(sync_path + desc, sync_path)
                 if cmd_args.update_custom_set and desc in photo_set and title != set['title']['_content']:
                     update_args = args.copy()
                     update_args.update({
@@ -137,7 +144,7 @@ def start_sync(sync_path, cmd_args):
 
         if folder not in photo_sets_map:
             photosets_args = args.copy()
-            custom_title = get_custom_set_title(sync_path + folder)
+            custom_title = get_custom_set_title(sync_path + folder, sync_path)
             photosets_args.update({'primary_photo_id': photo_id,
                                    'title': custom_title,
                                    'description': folder})
@@ -204,6 +211,7 @@ def start_sync(sync_path, cmd_args):
         return '.'.join(filename.split('.')[:-1] + ['tiff'])
 
     def convert_photo_to_tiff(photo_path):
+        #TODO Preserve EXIF data
         image = Image(photo_path)
         image.magick("TIFF")
         (_, file_name) = os.path.split(photo_path)
@@ -247,7 +255,7 @@ def start_sync(sync_path, cmd_args):
         # upload photos that does not exists in online map
         for photo_set in sorted(photo_sets):
             folder = photo_set.replace(sync_path, '')
-            display_title = get_custom_set_title(photo_set)
+            display_title = get_custom_set_title(photo_set, sync_path)
             print 'Getting photos in set [%s]' % display_title
             photos = get_photos_in_set(folder)
             print 'Found %s photos' % len(photos)
@@ -306,6 +314,7 @@ def main():
     parser.add_argument('--custom-set-builder', type=str, help='build your custom set title (default just merge groups)')
     parser.add_argument('--update-custom-set', action='store_true', help='updates your set title from custom set')
     parser.add_argument('--handle-raw', action='store_true', help='handle raw image files')
+    parser.add_argument('--include-pattern', type=str, help='only include folders matching regex')
 
     args = parser.parse_args()
     start_sync(args.sync_path.rstrip(os.sep) + os.sep, args)
