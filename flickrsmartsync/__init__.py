@@ -7,9 +7,13 @@ import urllib
 import argparse
 import flickrapi
 import tempfile
+import sys
 from PythonMagick import Image
 
 __author__ = 'faisal'
+
+reload(sys)
+sys.setdefaultencoding("utf-8")
 
 EXT_IMAGE = ('jpg', 'jpeg', 'png', 'jpeg', 'gif', 'bmp', 'tif', 'tiff')
 EXT_VIDEO = ('avi', 'wmv', 'mov', 'mp4', '3gp', 'ogg', 'ogv', 'mts')
@@ -142,7 +146,13 @@ def start_sync(sync_path, cmd_args):
         if is_windows:
             folder = folder.replace(os.sep, '/')
 
-        if folder not in photo_sets_map:
+        flickr_photo_set = None
+        for k, v in photo_sets_map.iteritems():
+            if folder == str(k):
+                flickr_photo_set = k
+                break
+
+        if not flickr_photo_set:
             photosets_args = args.copy()
             custom_title = get_custom_set_title(sync_path + folder, sync_path)
             photosets_args.update({'primary_photo_id': photo_id,
@@ -153,7 +163,7 @@ def start_sync(sync_path, cmd_args):
             print 'Created set [%s] and added photo' % custom_title
         else:
             photosets_args = args.copy()
-            photosets_args.update({'photoset_id': photo_sets_map.get(folder), 'photo_id': photo_id})
+            photosets_args.update({'photoset_id': photo_sets_map.get(flickr_photo_set), 'photo_id': photo_id})
             result = json.loads(api.photosets_addPhoto(**photosets_args))
             if result.get('stat') == 'ok':
                 print 'Success'
@@ -272,7 +282,12 @@ def start_sync(sync_path, cmd_args):
                 elif cmd_args.ignore_videos and photo.split('.').pop().lower() in EXT_VIDEO:
                     continue
 
-                if photo in photos or is_windows and photo.replace(os.sep, '/') in photos:
+                photo_exist = False
+                for k, v in photos.iteritems():
+                    if photo == str(k) or is_windows and photo.replace(os.sep, '/') == str(k):
+                        photo_exist = True
+
+                if photo_exist == True:
                     print 'Skipped [%s] already exists in set [%s]' % (photo, display_title)
                 else:
                     print 'Uploading [%s] to set [%s]' % (photo, display_title)
