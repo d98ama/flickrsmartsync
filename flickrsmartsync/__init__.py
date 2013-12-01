@@ -8,6 +8,7 @@ import argparse
 import flickrapi
 import tempfile
 import sys
+from gi.repository import GExiv2
 from PythonMagick import Image
 
 __author__ = 'faisal'
@@ -18,6 +19,7 @@ sys.setdefaultencoding("utf-8")
 EXT_IMAGE = ('jpg', 'jpeg', 'png', 'jpeg', 'gif', 'bmp', 'tif', 'tiff')
 EXT_VIDEO = ('avi', 'wmv', 'mov', 'mp4', '3gp', 'ogg', 'ogv', 'mts')
 EXT_CONVERT_IMAGE = ('cr2', 'orf', 'rw2', 'psd')
+EXIF_TAGS_TO_COPY = ('Exif.Image', 'Exif.GPSInfo', 'Exif.Photo')
 
 
 def start_sync(sync_path, cmd_args):
@@ -221,13 +223,24 @@ def start_sync(sync_path, cmd_args):
         return '.'.join(filename.split('.')[:-1] + ['tiff'])
 
     def convert_photo_to_tiff(photo_path):
-        #TODO Preserve EXIF data
+        print 'Converting %s to TIFF...' % (photo_path,)
         image = Image(photo_path)
         image.magick("TIFF")
         (_, file_name) = os.path.split(photo_path)
         file_name = convert_local_filename_to_flickr(file_name)
         file_name = os.path.join(tempfile.mkdtemp('.flickrsmartsync'), file_name)
         image.write(file_name)
+
+        #Copy EXIF info
+        source_exif = GExiv2.Metadata(photo_path)
+        dest_exif = GExiv2.Metadata(file_name)
+        #Copy exif tags that are in EXIF_TAGS_TO_COPY and not already present in the output file
+        keys = [key for key in source_exif.get_exif_tags() if key not in dest_exif.get_tags() and '.'.join(key.split('.')[:-1]) in EXIF_TAGS_TO_COPY]
+        for key in keys:
+            dest_exif[key] = source_exif[key]
+        dest_exif.save_file()
+
+        print 'Done converting photo!'
         return file_name
 
     # If download mode lets skip upload but you can also modify this to your needs
