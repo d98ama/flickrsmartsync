@@ -128,7 +128,7 @@ def start_sync(sync_path, cmd_args):
             if desc:
                 photo_sets_map[desc] = set['id']
                 title = get_custom_set_title(sync_path + desc, sync_path)
-                if cmd_args.update_custom_set and desc in photo_set and title != set['title']['_content']:
+                if cmd_args.update_custom_set and str(sync_path + desc) in photo_sets and title != set['title']['_content']:
                     update_args = args.copy()
                     update_args.update({
                         'photoset_id': set['id'],
