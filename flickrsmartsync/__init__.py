@@ -221,7 +221,7 @@ def start_sync(sync_path, cmd_args):
     def convert_local_filename_to_flickr(filename):
         return '.'.join(filename.split('.')[:-1] + ['jpeg'])
 
-    def convert_photo_to_tiff(photo_path):
+    def convert_photo_to_jpeg(photo_path):
         print 'Converting %s to JPEG...' % (photo_path,)
         image = Image(photo_path)
         image.magick("jpeg")
@@ -275,7 +275,7 @@ def start_sync(sync_path, cmd_args):
             print 'Found %s photos' % len(photos)
 
             for photo in sorted(photo_sets[photo_set]):
-                #Convert local photo name to online photo name (for example CR2 -> tiff)
+                #Convert local photo name to online photo name (for example CR2 -> jpeg)
                 original_photo = photo
                 if file_eligable_for_conversion(photo):
                     photo = convert_local_filename_to_flickr(photo)
@@ -299,7 +299,7 @@ def start_sync(sync_path, cmd_args):
 
                     file_path = os.path.join(photo_set, photo)
                     if file_eligable_for_conversion(original_photo):
-                        file_path = convert_photo_to_tiff(os.path.join(photo_set, original_photo))
+                        file_path = convert_photo_to_jpeg(os.path.join(photo_set, original_photo))
 
                     file_stat = os.stat(file_path)
 
@@ -317,7 +317,7 @@ def start_sync(sync_path, cmd_args):
                     except:
                         # todo add tracking to show later which ones failed
                         pass
-                    #TODO Delete any temporary created tiff files
+                    #TODO Delete any temporary created jpeg files
 
     print 'All Synced'
 
