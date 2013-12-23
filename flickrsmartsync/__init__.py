@@ -18,7 +18,7 @@ sys.setdefaultencoding("utf-8")
 
 EXT_IMAGE = ('jpg', 'jpeg', 'png', 'jpeg', 'gif', 'bmp')
 EXT_VIDEO = ('avi', 'wmv', 'mov', 'mp4', '3gp', 'ogg', 'ogv', 'mts')
-EXT_CONVERT_IMAGE = ('cr2', 'orf', 'rw2', 'psd', 'tiff', 'tif')
+EXT_CONVERT_IMAGE = ('cr2', 'orf', 'psd', 'tiff', 'tif')
 
 
 def start_sync(sync_path, cmd_args):
